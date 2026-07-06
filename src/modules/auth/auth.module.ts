@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { MongooseModule } from '@nestjs/mongoose'
+import * as jwt from 'jsonwebtoken'
 import { AuthController } from './auth.controller'
 import { AuthService } from './auth.service'
 import { JwtStrategy } from './strategies/jwt.strategy'
@@ -19,7 +20,7 @@ import { NotificationsModule } from '../notifications/notifications.module'
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET', 'tembea-africa-secret-key-2025'),
-        signOptions: { expiresIn: config.get<string>('JWT_EXPIRES_IN', '24h') },
+        signOptions: { expiresIn: config.get<string>('JWT_EXPIRES_IN', '24h') as jwt.SignOptions['expiresIn'] },
       }),
     }),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
