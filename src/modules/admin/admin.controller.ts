@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Delete, Param, Query, Body, UseGuards } from '@nestjs/common'
+import { Controller, Get, Post, Patch, Delete, Param, Query, Body, UseGuards } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
 import { AdminService } from './admin.service'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
@@ -16,6 +16,10 @@ export class AdminController {
   @Get('stats')
   @ApiOperation({ summary: 'Get dashboard statistics' })
   getStats() { return this.adminService.getDashboardStats() }
+
+  @Post('seed')
+  @ApiOperation({ summary: 'Seed database with initial test data (admin only, idempotent)' })
+  seedDatabase() { return this.adminService.seedDatabase() }
 
   @Get('users')
   @ApiOperation({ summary: 'List all users' })

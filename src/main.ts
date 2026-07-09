@@ -5,6 +5,7 @@ import { AppModule } from './app.module'
 import helmet from 'helmet'
 import compression from 'compression'
 import morgan from 'morgan'
+import { generateSeedData } from './database/seed-data'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { cors: false })
@@ -61,8 +62,31 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document)
 
   const port = process.env.PORT || 3001
+  
+  // Auto-seed on first startup (if database is empty)
+  // This runs only once when the app starts
+  if (process.env.AUTO_SEED !== 'false') {
+    app.get('db').connection.once('open', async () => {
+      try {
+        const userCount = await app.get('db').connection.collection('users').countDocuments()
+        if (userCount === 0) {
+          console.log('\n🌱 Database is empty. Auto-seeding...')
+          const AdminService = app.get('AdminService')
+          const result = await AdminService.seedDatabase()
+          if (result.success) {
+            console.log('✅ Auto-seed completed successfully!\n')
+          }
+        }
+      } catch (error) {
+        // Auto-seed is optional, don't block app startup on seed failure
+        console.warn('⚠️ Auto-seed attempted but skipped (database may already have data or seeding is disabled)')
+      }
+    })
+  }
+
   await app.listen(port)
   console.log(`🌍 Tembea Africa API running on: http://localhost:${port}/api`)
   console.log(`📚 Swagger docs at: http://localhost:${port}/api/docs`)
+  console.log(`💡 To seed database via API: POST http://localhost:${port}/api/admin/seed (requires admin auth)\n`)
 }
 bootstrap()

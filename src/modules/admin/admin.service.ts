@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, BadRequestException } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { User, UserDocument } from '../users/schemas/user.schema'
 import { Tour, TourDocument } from '../tours/schemas/tour.schema'
 import { Booking, BookingDocument } from '../bookings/schemas/booking.schema'
 import { Review, ReviewDocument } from '../reviews/schemas/review.schema'
+import { Destination, DestinationDocument } from '../destinations/schemas/destination.schema'
+import { Accommodation, AccommodationDocument } from '../accommodations/schemas/accommodation.schema'
+import { Guide, GuideDocument } from '../guides/schemas/guide.schema'
+import { generateSeedData } from '../../database/seed-data'
 
 @Injectable()
 export class AdminService {
@@ -13,6 +17,9 @@ export class AdminService {
     @InjectModel(Tour.name) private tourModel: Model<TourDocument>,
     @InjectModel(Booking.name) private bookingModel: Model<BookingDocument>,
     @InjectModel(Review.name) private reviewModel: Model<ReviewDocument>,
+    @InjectModel(Destination.name) private destinationModel: Model<DestinationDocument>,
+    @InjectModel(Accommodation.name) private accommodationModel: Model<AccommodationDocument>,
+    @InjectModel(Guide.name) private guideModel: Model<GuideDocument>,
   ) {}
 
   async getDashboardStats() {
@@ -122,5 +129,104 @@ export class AdminService {
 
   async deleteReview(id: string) {
     return this.reviewModel.findByIdAndUpdate(id, { isDeleted: true }, { new: true })
+  }
+
+  /**
+   * Seed database with initial test data.
+   * Safe to call multiple times — skips if data already exists.
+   * To add more seed data in the future:
+   * 1. Update src/database/seed-data.ts with new collections
+   * 2. Call this endpoint again
+   */
+  async seedDatabase() {
+    try {
+      // Check if already seeded — count users to detect existing data
+      const userCount = await this.userModel.countDocuments()
+      if (userCount > 0) {
+        return {
+          success: false,
+          message: 'Database already seeded',
+          details: `Found ${userCount} existing users. Skipping seed to avoid duplicates.`,
+          tip: 'To re-seed, clear the database collections first.',
+        }
+      }
+
+      console.log('🌱 Starting database seed...')
+
+      // Get seed data
+      const seedData = await generateSeedData()
+
+      // ─── SEED COLLECTIONS ──────────────────────────────────────────────────
+      const results: Record<string, number> = {}
+
+      // Users
+      if (seedData.collections.users?.length > 0) {
+        const users = await this.userModel.insertMany(seedData.collections.users)
+        results.users = users.length
+        console.log(`✅ Seeded ${users.length} users`)
+      }
+
+      // Destinations
+      if (seedData.collections.destinations?.length > 0) {
+        const destinations = await this.destinationModel.insertMany(seedData.collections.destinations)
+        results.destinations = destinations.length
+        console.log(`✅ Seeded ${destinations.length} destinations`)
+      }
+
+      // Tours
+      if (seedData.collections.tours?.length > 0) {
+        const tours = await this.tourModel.insertMany(seedData.collections.tours)
+        results.tours = tours.length
+        console.log(`✅ Seeded ${tours.length} tours`)
+      }
+
+      // Guides
+      if (seedData.collections.guides?.length > 0) {
+        const guides = await this.guideModel.insertMany(seedData.collections.guides)
+        results.guides = guides.length
+        console.log(`✅ Seeded ${guides.length} guides`)
+      }
+
+      // Accommodations
+      if (seedData.collections.accommodations?.length > 0) {
+        const accommodations = await this.accommodationModel.insertMany(seedData.collections.accommodations)
+        results.accommodations = accommodations.length
+        console.log(`✅ Seeded ${accommodations.length} accommodations`)
+      }
+
+      // Reviews
+      if (seedData.collections.reviews?.length > 0) {
+        const reviews = await this.reviewModel.insertMany(seedData.collections.reviews)
+        results.reviews = reviews.length
+        console.log(`✅ Seeded ${reviews.length} reviews`)
+      }
+
+      console.log('\n🎉 Database seeded successfully!')
+
+      return {
+        success: true,
+        message: '✅ Database seeded successfully!',
+        details: results,
+        loginCredentials: {
+          admin: { email: 'admin@tembeaafrica.com', password: 'Admin@123' },
+          guide: { email: 'joseph@tembeaafrica.com', password: 'Admin@123' },
+          tourist: { email: 'john@example.com', password: 'Admin@123' },
+          operator: { email: 'operator@marasafaris.com', password: 'Admin@123' },
+        },
+        nextSteps: [
+          'Login with any of the provided credentials',
+          'Explore destinations, tours, guides, and accommodations',
+          'To add more seed data in future: update src/database/seed-data.ts and call this endpoint again',
+        ],
+      }
+    } catch (error: any) {
+      console.error('❌ Seed failed:', error.message)
+      throw new BadRequestException({
+        success: false,
+        message: 'Database seeding failed',
+        error: error.message,
+        tip: 'Ensure MongoDB connection is active and collections are accessible.',
+      })
+    }
   }
 }
